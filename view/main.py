@@ -155,19 +155,23 @@ class MainWindow(QMainWindow):
             poly.append(p.position())
         self.poly[side].setPolygon(poly)
 
+    def __new_point(self, point: QPointF, side: Side) -> Point:
+        pt = Point(point.x(), point.y(), 10)
+        pt.setPen(QPen(Qt.green))
+        pt.side = side
+        pt.event.positionChanged.connect(self.__roi_changed)
+        return pt
+
     @Slot(str, QPointF)
     def __pressed(self, side: str, point: QPointF):
 
         print("pressed", side, point.x(), point.y())
         if self.do_add_point:
-            pt = Point(point.x(), point.y(), 10)
-            pt.setPen(QPen(Qt.green))
-            pt.side = side
-            pt.event.positionChanged.connect(self.__roi_changed)
+            pt = self.__new_point(point, side)
             self.roi[side].append(pt)
             self.__sort_polygon(side)
             self.__update_polygon(side)
-            if self.poly[side].size() == 3:
+            if self.poly[side].polygon().size() == 3:
                 self.ui.scene[side].addItem(self.poly[side])
             self.ui.scene[side].addItem(pt)
             self.do_add_point = False
@@ -191,21 +195,50 @@ class MainWindow(QMainWindow):
         else:
             print("cancel")
 
+    def __points_to_model(self):
+        for side in Scan.SIDES:
+            roi_side = self.roi_model.side(side)
+            roi_side.polygon.clear()
+            for point in self.roi[side]:
+                roi_side.polygon.append(point.position())
+
+    def __model_to_points(self):
+        for side in Scan.SIDES:
+            roi_side = self.roi_model.side(side)
+            self.__hide_roi_points(side)
+            gfx = self.ui.scene[side]
+
+            self.roi[side] = list()
+            for point in roi_side.polygon:
+                pt = self.__new_point(point, side)
+                self.roi[side].append(pt)
+                gfx.addItem(pt)
+
+            self.__update_polygon(side)
+
+        self.__update_views()
+
     @Slot()
     def __action_roi_load(self):
-        name, ext = QFileDialog.getOpenFileName(parent=self, caption='Select ROI', filter=ROI_JSON)
+        name, ext = QFileDialog.getOpenFileName(
+            parent=self, caption='Select ROI', filter=ROI_JSON
+        )
         if name:
             with open(name) as json:
                 content = json.read()
                 self.roi_model.from_json(content)
+                self.__model_to_points()
 
     @Slot()
     def __action_roi_save(self):
-        name:str
-        name, ext = QFileDialog.getSaveFileName(parent=self, caption='Enter file name', filter=ROI_JSON)
+        name: str
+        name, ext = QFileDialog.getSaveFileName(
+            parent=self, caption='Enter file name', filter=ROI_JSON
+        )
         if name:
             if not name.endswith(ROI_EXT):
                 name += ROI_EXT
+            self.__points_to_model()
             content = self.roi_model.to_json()
             with open(name, 'w') as json:
                 json.write(content)
@@ -242,16 +275,27 @@ class MainWindow(QMainWindow):
         )
         self.__update_views()
 
+    def __hide_roi_points(self, side: Side):
+        gfx = self.ui.scene[side]
+        for pt in self.roi[side]:
+            gfx.removeItem(pt)
+        gfx.removeItem(self.poly[side])
+
+    def __show_roi_points(self, side: Side):
+        gfx = self.ui.scene[side]
+        for pt in self.roi[side]:
+            gfx.addItem(pt)
+        if self.poly[side].polygon().size() >= 3:
+            gfx.addItem(self.poly[side])
+
     def __update_views(self):
         points = self.scan.get_points(self.current_line)
         p0 = QPen(Qt.darkGreen)
         p1 = QPen(Qt.darkGray)
 
         for side in Scan.SIDES:
+            self.__hide_roi_points(side)
             gfx = self.ui.scene[side]
-            for pt in self.roi[side]:
-                gfx.removeItem(pt)
-            gfx.removeItem(self.poly[side])
             gfx.clear()
             gfx.addRect(0, 0, 2054, 2054)
 
@@ -268,7 +312,4 @@ class MainWindow(QMainWindow):
                     pt.setPen(p1)
                 pt.setToolTip(f"{point.x():0.2f}x{point.y():0.2f}")
 
-            for pt in self.roi[side]:
-                gfx.addItem(pt)
-            if self.poly[side].polygon().size() >= 3:
-                gfx.addItem(self.poly[side])
+            self.__show_roi_points(side)

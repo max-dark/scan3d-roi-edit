@@ -24,7 +24,8 @@ class SideRoi:
         return False
 
     def contains(self, point: QPointF) -> bool:
-        return self.polygon.containsPoint(point, Qt.OddEvenFill)
+        return (self.polygon.size() >= 3) and \
+            self.polygon.containsPoint(point, Qt.OddEvenFill)
 
     def to_dict(self):
         o = dict()
