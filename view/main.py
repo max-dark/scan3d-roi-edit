@@ -16,6 +16,8 @@ from view.gfx import View, Scene, Point
 
 class Ui:
     a_load: QAction
+    a_load_roi: QAction
+    a_save_roi: QAction
     a_add: QAction
     slide_file: QSlider
     slide_line: QSlider
@@ -48,7 +50,10 @@ class Ui:
         menu_bar = QMenuBar()
         file_menu: QMenu = menu_bar.addMenu("File")
 
-        self.a_load: QAction = file_menu.addAction("Load")
+        self.a_load: QAction = file_menu.addAction("Load Scans")
+        file_menu.addSeparator()
+        self.a_load_roi: QAction = file_menu.addAction("Load ROI")
+        self.a_save_roi: QAction = file_menu.addAction("Save ROI")
         file_menu.addSeparator()
         a_exit: QAction = file_menu.addAction("Exit")
         a_exit.triggered.connect(window.close)
