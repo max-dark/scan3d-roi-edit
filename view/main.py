@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import QAction, QMainWindow, \
 from PyQt5.QtGui import QPen, QPolygonF
 
 from scan.types import Scan, Side, NUM_FILES, NUM_SCANS
+from scan.roi import Roi
 from view.gfx import View, Scene, Point
 
 
@@ -100,6 +101,7 @@ def cmp(a: Point, b: Point) -> int:
 
 class MainWindow(QMainWindow):
     scan: Scan
+    roi_model: Roi
     current_dir: str
     current_index: int
     current_line: int
@@ -109,6 +111,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__(parent=None)
+        self.roi_model = Roi()
         self.ui = Ui()
         self.ui.build_ui(self)
         self.__bind_ui()
@@ -117,6 +120,9 @@ class MainWindow(QMainWindow):
 
     def __bind_ui(self):
         self.ui.a_load.triggered.connect(self.__action_load)
+
+        self.ui.a_load_roi.triggered.connect(self.__action_roi_load)
+        self.ui.a_save_roi.triggered.connect(self.__action_roi_save)
 
         self.ui.a_add.triggered.connect(self.__action_add)
 
@@ -185,6 +191,14 @@ class MainWindow(QMainWindow):
             self.__set_current_directory(scan_dir)
         else:
             print("cancel")
+
+    @Slot()
+    def __action_roi_load(self):
+        pass
+
+    @Slot()
+    def __action_roi_save(self):
+        pass
 
     @Slot(int)
     def __slide_file(self, value: int):
