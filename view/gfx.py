@@ -47,6 +47,7 @@ class PointEvent(QObject):
 
 class Point(QGraphicsRectItem):
     side: str
+    index: int
     event: PointEvent
 
     def __init__(self, x: float, y: float, size: float = 5.0, parent: QGraphicsItem = None):

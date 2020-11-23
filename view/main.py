@@ -14,6 +14,9 @@ from scan.types import Scan, Side, NUM_FILES, NUM_SCANS
 from scan.roi import Roi
 from view.gfx import View, Scene, Point
 
+ROI_EXT = '.roi.json'
+ROI_JSON = f'ROI(*{ROI_EXT})'
+
 
 class Ui:
     a_load: QAction
@@ -138,11 +141,19 @@ class MainWindow(QMainWindow):
             self.poly[side].setFlag(QGraphicsItem.ItemSendsGeometryChanges)
             gfx = self.ui.gfx[side]
             gfx.mousePressed.connect(self.__pressed)
-            gfx.mouseReleased.connect(self.__released)
 
     def __make_base_name(self) -> str:
         name = f"{self.current_dir}/scan_{self.current_index}"
         return name
+
+    def __sort_polygon(self, side: Side):
+        self.roi[side].sort(key=cmp_to_key(cmp))
+
+    def __update_polygon(self, side: Side):
+        poly = QPolygonF()
+        for p in self.roi[side]:
+            poly.append(p.position())
+        self.poly[side].setPolygon(poly)
 
     @Slot(str, QPointF)
     def __pressed(self, side: str, point: QPointF):
@@ -154,33 +165,21 @@ class MainWindow(QMainWindow):
             pt.side = side
             pt.event.positionChanged.connect(self.__roi_changed)
             self.roi[side].append(pt)
-            self.roi[side].sort(key=cmp_to_key(cmp))
-
-            poly = QPolygonF()
-            for p in self.roi[side]:
-                poly.append(p.position())
-            self.poly[side].setPolygon(poly)
-            if poly.size() == 3:
+            self.__sort_polygon(side)
+            self.__update_polygon(side)
+            if self.poly[side].size() == 3:
                 self.ui.scene[side].addItem(self.poly[side])
             self.ui.scene[side].addItem(pt)
             self.do_add_point = False
 
     @Slot(str, QPointF)
     def __roi_changed(self, side: str, _: QPointF):
-        self.roi[side].sort(key=cmp_to_key(cmp))
-
-        poly = QPolygonF()
-        for p in self.roi[side]:
-            poly.append(p.position())
-        self.poly[side].setPolygon(poly)
+        self.__sort_polygon(side)
+        self.__update_polygon(side)
 
     @Slot()
     def __action_add(self):
         self.do_add_point = True
-
-    @Slot(str, QPointF)
-    def __released(self, side: str, point: QPointF):
-        print("released", side, point.x(), point.y())
 
     @Slot()
     def __action_load(self) -> None:
@@ -194,11 +193,22 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def __action_roi_load(self):
-        pass
+        name, ext = QFileDialog.getOpenFileName(parent=self, caption='Select ROI', filter=ROI_JSON)
+        if name:
+            with open(name) as json:
+                content = json.read()
+                self.roi_model.from_json(content)
 
     @Slot()
     def __action_roi_save(self):
-        pass
+        name:str
+        name, ext = QFileDialog.getSaveFileName(parent=self, caption='Enter file name', filter=ROI_JSON)
+        if name:
+            if not name.endswith(ROI_EXT):
+                name += ROI_EXT
+            content = self.roi_model.to_json()
+            with open(name, 'w') as json:
+                json.write(content)
 
     @Slot(int)
     def __slide_file(self, value: int):
